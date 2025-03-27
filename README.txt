@@ -1,7 +1,8 @@
 Section A - Group
 
     Yassin, Chad - 300240007
-    Buyuktepe, Taha - 
+    Buyuktepe, Taha -
+    Patel, Rudra
 
 Section B - Intructions to run the scene
 
