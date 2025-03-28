@@ -16,6 +16,6 @@ Section B - Intructions to run the scene
 
 Section C - Attribution
 
-    - Alien.glb : user Elixir-Studio from https://www.cgtrader.com/free-3d-models/character/sci-fi-character/alien-creature-bust-low-poly-3d-model
-    - Earth.glb : user karthic2k1999 from https://www.cgtrader.com/free-3d-models/plant/other/earth-16k-f2b2ab91-665c-4409-beac-be0f8069af8d
-    - Saucer.glb : user rrrokade7 from https://www.cgtrader.com/free-3d-models/car/car/flying-saucer-b6050858-3ac8-418b-9207-1ebd3bfa4812
+    - Alien.ply : 
+    - Earth.ply : 
+    - UFO.ply : 
