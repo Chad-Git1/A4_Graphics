@@ -15,6 +15,7 @@ General
 import * as THREE from 'three'; 
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js';
 
 // Scene, Camera, Renderer
 const scene = new THREE.Scene();
@@ -63,6 +64,34 @@ models.forEach((model, index) => {
         scene.add(modelScene);
     }, undefined, (error) => {
         console.error(`Error loading ${model}:`, error);
+    });
+});
+
+
+// PLY Models
+const plyLoader = new PLYLoader();
+const plyModels = ['UFO.ply', 'Alien.ply', 'Earth.ply'];
+const plyPositions = [
+    new THREE.Vector3(0, 2, 0),     // UFO
+    new THREE.Vector3(3, -2, 0),     // Alien
+    new THREE.Vector3(-3, -2, 0)     // Earth
+];
+
+plyModels.forEach((model, index) => {
+    plyLoader.load(`Assets/${model}`, function (geometry) {
+        geometry.computeVertexNormals();
+        const material = new THREE.MeshStandardMaterial({
+            vertexColors: true,
+            flatShading: false
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(plyPositions[index]);
+        if (model === 'UFO.ply') {
+            mesh.scale.set(0.05, 0.05, 0.05); // decreasing UFO size
+        }
+        scene.add(mesh);
+    }, undefined, function (error) {
+        console.error(`Error loading PLY model ${model}:`, error);
     });
 });
 
