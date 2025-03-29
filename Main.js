@@ -98,6 +98,42 @@ function updateAsteroidPosition(asteroid, time) {
     asteroid.position.y = data.heightOffset + (noiseY - 0.5) * params.noiseIntensity * 0.5;
     asteroid.position.z = z + (noiseZ - 0.5) * params.noiseIntensity * 0.5;
 }
+const textureLoader = new THREE.TextureLoader();
+const starTexture = textureLoader.load('/Assets/Circle.png'); 
+
+// Function to create a star field (particle system).
+function createStarField() {
+    const starGeometry = new THREE.BufferGeometry();
+    const starCount = 2000;
+    const positions = [];
+    const range = 300; // how large an area the stars are spread over
+  
+    for (let i = 0; i < starCount; i++) {
+      const x = Math.random() * range - range / 2;
+      const y = Math.random() * range - range / 2;
+      const z = Math.random() * range - range / 2;
+      positions.push(x, y, z);
+    }
+  
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.7,
+      sizeAttenuation: true,
+      map: starTexture,
+      alphaTest: 0.1,    // so the transparent part of the texture is discarded
+      transparent: true, // for partial transparency
+    });
+  
+    return new THREE.Points(starGeometry, starMaterial);
+  }
+
+// Add the star field to the scene
+const starField = createStarField();
+scene.add(starField);
+
+
 
 // Load PLY models
 const plyLoader = new PLYLoader();
