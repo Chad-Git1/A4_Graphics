@@ -13,12 +13,16 @@ document.body.appendChild(renderer.domElement);
 const perlin = new PerlinNoise();
 const params = {
     noiseIntensity: 0,
-    animationSpeed: 0.5
+    animationSpeed: 0.5,
+    alienAbductionAmplitude: 2.0,
+    alienAbductionSpeed: 1.0
 };
 
 const gui = new GUI();
 gui.add(params, 'noiseIntensity', 0, 2, 0.05).name('Perlin Noise');
 gui.add(params, 'animationSpeed', 0, 1, 0.001).name('Orbit Speed');
+gui.add(params, 'alienAbductionAmplitude', 0, 5, 0.1).name('Abduction Ampl.');
+gui.add(params, 'alienAbductionSpeed', 0, 2, 0.01).name('Abduction Speed');
 
 function createAsteroidBelt() {
     // Params for the asteroid belt
@@ -140,7 +144,7 @@ const plyLoader = new PLYLoader();
 const plyModels = ['UFO.ply', 'Alien.ply', 'Earth.ply'];
 const plyPositions = [
     new THREE.Vector3(0, 2, 0),     // UFO
-    new THREE.Vector3(3, -2, 0),     // Alien
+    new THREE.Vector3(0, -2, 0),     // Alien
     new THREE.Vector3(-3, -2, 0)     // Earth
 ];
 
@@ -155,6 +159,11 @@ plyModels.forEach((model, index) => {
         mesh.position.copy(plyPositions[index]);
         if (model === 'UFO.ply') {
             mesh.scale.set(0.03, 0.03, 0.03); // decreasing UFO size
+        }
+        if (model === 'Alien.ply') {
+            alienMesh = mesh;
+            // Store its initial Y position.
+            mesh.userData.initialY = mesh.position.y;
         }
         scene.add(mesh);
     }, undefined, function (error) {
@@ -177,6 +186,8 @@ camera.position.x = 0;
 camera.position.y = 4;
 camera.position.z = 10;
 
+let alienMesh = null;
+
 // Add OrbitControls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; // Damping to smoothen the control movement
@@ -185,14 +196,11 @@ controls.screenSpacePanning = false;
 
 // Animation loop
 function animate(time) {
-    if (isNaN(time)) {
-        time = 0;
-    }
 
     requestAnimationFrame(animate);
-    time *= params.animationSpeed;
-
-    const clampedTime = time % 1000;
+   
+    const t = time * 0.001 * params.animationSpeed;
+    const clampedTime = t % 1000;
 
     asteroidBelt.forEach((asteroid) => {
         updateAsteroidPosition(asteroid, clampedTime);
@@ -202,6 +210,12 @@ function animate(time) {
         asteroid.rotation.y += 0.013;
         asteroid.rotation.z += 0.03;
     });
+
+    // If the alien mesh is loaded, update its Y position for the abduction animation.
+    if (alienMesh) {
+        const baseY = alienMesh.userData.initialY;  // The starting Y position
+        alienMesh.position.y = baseY + Math.sin(t * params.alienAbductionSpeed) * params.alienAbductionAmplitude;
+    }
 
     controls.update();
     renderer.render(scene, camera);
