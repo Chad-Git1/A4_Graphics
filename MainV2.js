@@ -37,11 +37,14 @@ const params = {
     alienAbductionSpeed: 1.0,
     // Lighting parameters
     ambientIntensity: 0.4,
-    directionalIntensity: 0.8,
+    directionalIntensity: 3.0,
     ufoGlowIntensity: 0.0,
     useVertexColors: true,
     enableCustomShaders: false
 };
+
+let currentAbductionSpeed = params.alienAbductionSpeed;
+let phaseOffset = 0;
 
 // Keyboard movement state
 const movement = {
@@ -59,12 +62,19 @@ const movementFolder = gui.addFolder('Movement');
 movementFolder.add(params, 'noiseIntensity', 0, 2, 0.05).name('Perlin Noise');
 movementFolder.add(params, 'animationSpeed', 0, 1, 0.001).name('Movement Speed');
 movementFolder.add(params, 'alienAbductionAmplitude', 0, 4.0, 0.1).name('Abduction Ampl.');
-movementFolder.add(params, 'alienAbductionSpeed', 0, 2, 0.01).name('Abduction Speed');
+movementFolder.add(params, 'alienAbductionSpeed', 0, 3, 0.01)
+  .name('Abduction Speed')
+  .onFinishChange((newSpeed) => {
+      const currentTime = clock.getElapsedTime();
+      const currentPhase = currentTime * currentAbductionSpeed + phaseOffset;
+      phaseOffset = currentPhase - currentTime * newSpeed;
+      currentAbductionSpeed = newSpeed;
+  });
 movementFolder.open();
 
 const lightingFolder = gui.addFolder('Lighting');
 lightingFolder.add(params, 'ambientIntensity', 0, 1, 0.05).name('Ambient Light').onChange(updateLighting);
-lightingFolder.add(params, 'directionalIntensity', 0, 1.25, 0.05).name('Sun Light').onChange(updateLighting);
+lightingFolder.add(params, 'directionalIntensity', 0, 5, 0.05).name('Sun Light').onChange(updateLighting);
 lightingFolder.add(params, 'ufoGlowIntensity', 0, 1, 0.025).name('Glow').onChange(updateMaterials);
 lightingFolder.add(params, 'useVertexColors').name('Use Vertex Colors').onChange(updateMaterials);
 lightingFolder.add(params, 'enableCustomShaders').name('Custom Shaders').onChange(updateMaterials,updateLighting);
@@ -537,11 +547,12 @@ function animate() {
         }
     });
 
-    // If the alien mesh is loaded, update its Y position for the abduction animation.
+    // Update alien position using the smoothed speed
     const alienMesh = scene.getObjectByName('alienMesh');
     if (alienMesh) {
         const baseY = alienMesh.userData.initialY; // The starting Y position
-        alienMesh.position.y = baseY + Math.sin(t * params.alienAbductionSpeed) * params.alienAbductionAmplitude;
+        const phase = clock.getElapsedTime() * currentAbductionSpeed + phaseOffset;
+        alienMesh.position.y = baseY + Math.sin(phase) * params.alienAbductionAmplitude;
     }
     
     // Make UFO rotate
