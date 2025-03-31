@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js';
 import PerlinNoise from './Perlin.js';
 import { GUI } from 'dat.gui';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 
 // Load shaders
 async function loadShaders() {
@@ -65,7 +65,7 @@ movementFolder.open();
 const lightingFolder = gui.addFolder('Lighting');
 lightingFolder.add(params, 'ambientIntensity', 0, 1, 0.05).name('Ambient Light').onChange(updateLighting);
 lightingFolder.add(params, 'directionalIntensity', 0, 1.25, 0.05).name('Sun Light').onChange(updateLighting);
-lightingFolder.add(params, 'ufoGlowIntensity', 0, 3, 0.1).name('Glow').onChange(updateMaterials);
+lightingFolder.add(params, 'ufoGlowIntensity', 0, 1, 0.025).name('Glow').onChange(updateMaterials);
 lightingFolder.add(params, 'useVertexColors').name('Use Vertex Colors').onChange(updateMaterials);
 lightingFolder.add(params, 'enableCustomShaders').name('Custom Shaders').onChange(updateMaterials,updateLighting);
 lightingFolder.open();
@@ -355,6 +355,8 @@ function cloneUniforms(uniforms) {
     return cloned;
 }
 
+let pointerLockControls;
+
 // Initialize the scene
 async function init() {
     // Load custom shaders
@@ -370,8 +372,8 @@ async function init() {
     const plyLoader = new PLYLoader();
     const plyModels = ['UFO.ply', 'Alien.ply', 'Earth.ply'];
     const plyPositions = [
-        new THREE.Vector3(0, 9.5, 0),     // UFO
-        new THREE.Vector3(0, 5, 0),    // Alien
+        new THREE.Vector3(0, 10.2, 0),     // UFO
+        new THREE.Vector3(0, 5.99, 0),    // Alien
         new THREE.Vector3(0, 0, 0)    // Earth
     ];
     const plyNames = ['ufoMesh', 'alienMesh', 'earthMesh'];
@@ -436,6 +438,7 @@ async function init() {
             }
             
             if (plyModels[i] === 'Earth.ply') {
+                mesh.scale.set(2, 2, 2); // increasing Earth size
                 // Make Earth cast and receive shadows
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
@@ -458,11 +461,42 @@ async function init() {
     camera.position.y = 4;
     camera.position.z = 20;
 
-    // Add OrbitControls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.25;
-    controls.screenSpacePanning = false;
+    pointerLockControls = new PointerLockControls(camera, renderer.domElement);
+    scene.add(pointerLockControls.object);
+
+    // Attach click listener to the canvas only
+    renderer.domElement.addEventListener('click', (event) => {
+        // Only lock pointer if the click target is exactly the canvas
+        if (event.target === renderer.domElement) {
+            pointerLockControls.lock();
+        }
+    });
+
+    // Get the dat.GUI container (dat.GUI creates a div with class 'dg')
+    const guiContainer = document.querySelector('.dg');
+    if (guiContainer) {
+        // When the mouse enters the GUI, unlock pointer lock if it's active
+        guiContainer.addEventListener('mouseenter', () => {
+            if (pointerLockControls.isLocked) {
+                pointerLockControls.unlock();
+            }
+        });
+
+        // Stop propagation for clicks on the GUI so they don't reach the canvas
+        guiContainer.addEventListener('click', (event) => {
+            event.stopPropagation();
+        }, true);
+    }
+
+    document.addEventListener('click', () => {
+        pointerLockControls.lock();
+    }, false);
+    pointerLockControls.addEventListener('lock', () => {
+        console.log('Pointer locked: fly-through enabled.');
+    });
+    pointerLockControls.addEventListener('unlock', () => {
+        console.log('Pointer unlocked: click to re-enable fly-through.');
+    });
     
     // Enable renderer shadows
     renderer.shadowMap.enabled = true;
@@ -515,35 +549,47 @@ function animate() {
     if (ufoMesh) {
         ufoMesh.rotation.y += 0.01;
     }
-    
-    // Update OrbitControls
-    const controls = camera.userData.controls;
-    if (controls) controls.update();
-    
+
     // Move camera using keyboard
-    const moveSpeed = 0.2;
+    const moveSpeed = 0.05;
     const direction = new THREE.Vector3();
+    const player = pointerLockControls.object;
 
     // Forward/backward in camera's facing direction
     if (movement.forward) {
         const forward = new THREE.Vector3();
         camera.getWorldDirection(forward);
-        camera.position.add(forward.multiplyScalar(moveSpeed));
+        forward.normalize();
+        player.position.add(forward.multiplyScalar(moveSpeed));
     }
     if (movement.backward) {
         const backward = new THREE.Vector3();
         camera.getWorldDirection(backward);
-        camera.position.add(backward.multiplyScalar(-moveSpeed));
+        backward.normalize();
+        player.position.add(backward.multiplyScalar(-moveSpeed));
     }
 
-    // Lateral and vertical movement
-    if (movement.left) direction.x -= moveSpeed;
-    if (movement.right) direction.x += moveSpeed;
-    if (movement.up) direction.y += moveSpeed;
-    if (movement.down) direction.y -= moveSpeed;
+    // Lateral movement: compute left/right vectors
+    if (movement.left) {
+        const left = new THREE.Vector3();
+        camera.getWorldDirection(left);
+        left.y = 0;
+        left.normalize();
+        left.cross(camera.up);
+        player.position.add(left.multiplyScalar(-moveSpeed));
+    }
+    if (movement.right) {
+        const right = new THREE.Vector3();
+        camera.getWorldDirection(right);
+        right.y = 0;
+        right.normalize();
+        right.cross(camera.up);
+        player.position.add(right.multiplyScalar(moveSpeed));
+    }
 
-    // Move relative to camera's facing direction
-    camera.position.add(direction.applyQuaternion(camera.quaternion));
+    // Vertical movement
+    if (movement.up) player.position.y += moveSpeed;
+    if (movement.down) player.position.y -= moveSpeed;
 
     renderer.render(scene, camera);
 }
@@ -574,10 +620,15 @@ window.addEventListener('keydown', (event) => {
         case 'd':
             movement.right = true;
             break;
-        case 'q':
+        // Use space to go up
+        case ' ':
+        case 'Space':
             movement.up = true;
             break;
-        case 'e':
+        // Use shift to go down
+        case 'Shift':
+        case 'ShiftLeft':
+        case 'ShiftRight':
             movement.down = true;
             break;
     }
@@ -601,10 +652,13 @@ window.addEventListener('keyup', (event) => {
         case 'd':
             movement.right = false;
             break;
-        case 'q':
+        case ' ':
+        case 'Space':
             movement.up = false;
             break;
-        case 'e':
+        case 'Shift':
+        case 'ShiftLeft':
+        case 'ShiftRight':
             movement.down = false;
             break;
     }
