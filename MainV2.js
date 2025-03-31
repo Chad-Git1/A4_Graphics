@@ -33,14 +33,24 @@ const perlin = new PerlinNoise();
 const params = {
     noiseIntensity: 0,
     animationSpeed: 0.5,
-    alienAbductionAmplitude: 2.0,
+    alienAbductionAmplitude: 4.0,
     alienAbductionSpeed: 1.0,
     // Lighting parameters
     ambientIntensity: 0.4,
     directionalIntensity: 0.8,
-    ufoGlowIntensity: 1.0,
+    ufoGlowIntensity: 0.0,
     useVertexColors: true,
     enableCustomShaders: false
+};
+
+// Keyboard movement state
+const movement = {
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    up: false,
+    down: false
 };
 
 // GUI setup
@@ -48,7 +58,7 @@ const gui = new GUI();
 const movementFolder = gui.addFolder('Movement');
 movementFolder.add(params, 'noiseIntensity', 0, 2, 0.05).name('Perlin Noise');
 movementFolder.add(params, 'animationSpeed', 0, 1, 0.001).name('Movement Speed');
-movementFolder.add(params, 'alienAbductionAmplitude', 0, 5, 0.1).name('Abduction Ampl.');
+movementFolder.add(params, 'alienAbductionAmplitude', 0, 4.0, 0.1).name('Abduction Ampl.');
 movementFolder.add(params, 'alienAbductionSpeed', 0, 2, 0.01).name('Abduction Speed');
 movementFolder.open();
 
@@ -371,7 +381,7 @@ async function init() {
         new THREE.Color(0x22ff22),  // Green - Alien
         new THREE.Color(0x2288ff)   // Blue - Earth
     ];
-    const plyGlowIntensities = [1.0, 0.5, 0.3];
+    const plyGlowIntensities = [params.ufoGlowIntensity, params.ufoGlowIntensity, params.ufoGlowIntensity];
     
     // Create materials before loading models
     for (let i = 0; i < plyModels.length; i++) {
@@ -510,6 +520,31 @@ function animate() {
     const controls = camera.userData.controls;
     if (controls) controls.update();
     
+    // Move camera using keyboard
+    const moveSpeed = 0.2;
+    const direction = new THREE.Vector3();
+
+    // Forward/backward in camera's facing direction
+    if (movement.forward) {
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        camera.position.add(forward.multiplyScalar(moveSpeed));
+    }
+    if (movement.backward) {
+        const backward = new THREE.Vector3();
+        camera.getWorldDirection(backward);
+        camera.position.add(backward.multiplyScalar(-moveSpeed));
+    }
+
+    // Lateral and vertical movement
+    if (movement.left) direction.x -= moveSpeed;
+    if (movement.right) direction.x += moveSpeed;
+    if (movement.up) direction.y += moveSpeed;
+    if (movement.down) direction.y -= moveSpeed;
+
+    // Move relative to camera's facing direction
+    camera.position.add(direction.applyQuaternion(camera.quaternion));
+
     renderer.render(scene, camera);
 }
 
@@ -518,6 +553,61 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+
+window.addEventListener('keydown', (event) => {
+    switch (event.key) {
+        case 'ArrowUp':
+        case 'w':
+            movement.forward = true;
+            break;
+        case 'ArrowDown':
+        case 's':
+            movement.backward = true;
+            break;
+        case 'ArrowLeft':
+        case 'a':
+            movement.left = true;
+            break;
+        case 'ArrowRight':
+        case 'd':
+            movement.right = true;
+            break;
+        case 'q':
+            movement.up = true;
+            break;
+        case 'e':
+            movement.down = true;
+            break;
+    }
+});
+
+window.addEventListener('keyup', (event) => {
+    switch (event.key) {
+        case 'ArrowUp':
+        case 'w':
+            movement.forward = false;
+            break;
+        case 'ArrowDown':
+        case 's':
+            movement.backward = false;
+            break;
+        case 'ArrowLeft':
+        case 'a':
+            movement.left = false;
+            break;
+        case 'ArrowRight':
+        case 'd':
+            movement.right = false;
+            break;
+        case 'q':
+            movement.up = false;
+            break;
+        case 'e':
+            movement.down = false;
+            break;
+    }
 });
 
 init();
